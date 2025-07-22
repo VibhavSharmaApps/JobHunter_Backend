@@ -297,6 +297,12 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
     console.log('File URL:', fileUrl);
     
     // Save URL to Supabase
+    console.log('Attempting to save to database with data:', {
+      user_id: user.id,
+      url: fileUrl,
+      file_name: fileName
+    });
+    
     const { data: dbResult, error: dbError } = await supabase.from('user_cvs').upsert({ 
       user_id: user.id, 
       url: fileUrl,
@@ -304,8 +310,17 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
     });
     
     if (dbError) {
-      console.error('Database error:', dbError);
-      return res.status(500).json({ error: 'Failed to save file URL to database' });
+      console.error('Database error details:', {
+        message: dbError.message,
+        code: dbError.code,
+        details: dbError.details,
+        hint: dbError.hint
+      });
+      return res.status(500).json({ 
+        error: 'Failed to save file URL to database',
+        details: dbError.message,
+        code: dbError.code
+      });
     }
     
     console.log('Database save successful:', dbResult);
@@ -552,6 +567,55 @@ app.get('/api/test-supabase', async (req, res) => {
     console.error('Supabase test error:', err);
     res.status(500).json({ 
       error: 'Supabase connection failed',
+      details: err.message
+    });
+  }
+});
+
+// Test user_cvs table schema
+app.get('/api/test-user-cvs-schema', async (req, res) => {
+  try {
+    console.log('Testing user_cvs table schema...');
+    
+    // Try to insert a test record to see what columns are expected
+    const testData = {
+      user_id: 'test-user-id',
+      url: 'https://test-url.com/test.pdf',
+      file_name: 'test.pdf'
+    };
+    
+    console.log('Attempting to insert test data:', testData);
+    
+    const { data, error } = await supabase
+      .from('user_cvs')
+      .insert([testData])
+      .select();
+    
+    if (error) {
+      console.error('Schema test error:', error);
+      res.status(500).json({ 
+        error: 'Schema test failed',
+        details: error.message,
+        code: error.code,
+        hint: error.hint
+      });
+    } else {
+      // Clean up the test record
+      await supabase
+        .from('user_cvs')
+        .delete()
+        .eq('user_id', 'test-user-id');
+      
+      res.json({ 
+        message: 'Schema test successful!',
+        columns: Object.keys(data[0] || {}),
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (err) {
+    console.error('Schema test error:', err);
+    res.status(500).json({ 
+      error: 'Schema test failed',
       details: err.message
     });
   }
