@@ -113,6 +113,84 @@ app.get('/api/user/cv', requireJwt, async (req, res) => {
   res.json(data);
 });
 
+// PRESIGNED URL UPLOAD ENDPOINTS
+app.post('/api/upload/presign', requireJwt, async (req, res) => {
+  const user = req.user;
+  const { fileName, fileType, fileSize } = req.body;
+  
+  if (!fileName || !fileType || !fileSize) {
+    return res.status(400).json({ error: 'fileName, fileType, and fileSize are required' });
+  }
+
+  // Validate file size (5MB limit)
+  if (fileSize > 5 * 1024 * 1024) {
+    return res.status(400).json({ error: 'File size must be less than 5MB' });
+  }
+
+  // Validate file type
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+  
+  if (!allowedTypes.includes(fileType)) {
+    return res.status(400).json({ error: 'Only PDF and Word documents are allowed' });
+  }
+
+  try {
+    const fileId = `${user.id}_${Date.now()}_${fileName}`;
+    const key = `cvs/${user.id}/${fileId}`;
+    
+    // Generate presigned URL for upload
+    const uploadUrl = await s3.getSignedUrlPromise('putObject', {
+      Bucket: R2_BUCKET,
+      Key: key,
+      ContentType: fileType,
+      Expires: 300, // 5 minutes
+    });
+
+    const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+
+    res.json({
+      uploadUrl,
+      fileUrl,
+      fileId,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/upload/confirm', requireJwt, async (req, res) => {
+  const user = req.user;
+  const { fileId, fileName } = req.body;
+  
+  if (!fileId || !fileName) {
+    return res.status(400).json({ error: 'fileId and fileName are required' });
+  }
+
+  try {
+    const key = `cvs/${user.id}/${fileId}`;
+    const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+    
+    // Save URL to Supabase
+    await supabase.from('user_cvs').upsert({ 
+      user_id: user.id, 
+      url: fileUrl,
+      file_name: fileName
+    });
+    
+    res.json({ 
+      message: 'Upload confirmed',
+      fileUrl,
+      fileId 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // JOB URLS CRUD
 app.get('/api/job-urls', requireJwt, async (req, res) => {
   const user = req.user;
