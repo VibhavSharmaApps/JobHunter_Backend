@@ -271,14 +271,26 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
     console.log('Uploading to R2 with key:', key);
     
     // Upload directly to R2 through backend
-    const uploadResult = await s3.putObject({
-      Bucket: R2_BUCKET,
-      Key: key,
-      Body: req.file.buffer,
-      ContentType: fileType,
-    }).promise();
+    try {
+      console.log('Attempting R2 upload...');
+      const uploadResult = await s3.putObject({
+        Bucket: R2_BUCKET,
+        Key: key,
+        Body: req.file.buffer,
+        ContentType: fileType,
+      }).promise();
 
-    console.log('R2 upload successful:', uploadResult);
+      console.log('R2 upload successful:', uploadResult);
+    } catch (r2Error) {
+      console.error('R2 upload failed:', r2Error);
+      console.error('R2 error details:', {
+        message: r2Error.message,
+        code: r2Error.code,
+        statusCode: r2Error.statusCode,
+        requestId: r2Error.requestId
+      });
+      throw new Error(`R2 upload failed: ${r2Error.message}`);
+    }
 
     const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
     
