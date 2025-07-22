@@ -13,7 +13,7 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'jobhunter-backend'
+      - 'jobhunter-backend-v2'
       - '--image'
       - 'gcr.io/$PROJECT_ID/jobhunter-backend:$COMMIT_SHA'
       - '--region'
