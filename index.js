@@ -13,18 +13,55 @@ const port = process.env.PORT || 8080;
 
 // Configure CORS properly for credentials
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://d0cfd836.jobhunter-frontend.pages.dev',
-    'https://jobhunter-frontend.pages.dev'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:8080',
+      'https://d0cfd836.jobhunter-frontend.pages.dev',
+      'https://jobhunter-frontend.pages.dev',
+      // Add any other Cloudflare Pages domains you might use
+      /^https:\/\/.*\.pages\.dev$/,
+      /^https:\/\/.*\.cloudflare\.com$/
+    ];
+    
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 app.use(passport.initialize());
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Debug middleware to log CORS issues
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
 
 // Helper: sign JWT
 function signJwt(user) {
@@ -252,6 +289,15 @@ app.post('/api/ai-cv-builder', requireJwt, (req, res) => {
 
 app.get('/', (req, res) => {
   res.send('Hello from the JobHunter Backend!');
+});
+
+// Test CORS endpoint
+app.get('/api/test-cors', (req, res) => {
+  res.json({ 
+    message: 'CORS is working!', 
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(port, () => {
