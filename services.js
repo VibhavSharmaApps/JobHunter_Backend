@@ -23,8 +23,8 @@ const httpsAgent = new https.Agent({
 });
 
 // Cloudflare R2 (S3-compatible)
-// Force the correct endpoint since environment variable might be wrong
-const R2_ENDPOINT = process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com';
+// Force the correct endpoint since environment variable is wrong
+const R2_ENDPOINT = 'https://1020050031271.r2.cloudflarestorage.com';
 
 console.log('Using R2 endpoint:', R2_ENDPOINT);
 
