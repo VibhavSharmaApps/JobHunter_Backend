@@ -510,6 +510,41 @@ app.get('/api/debug-r2-config', async (req, res) => {
   });
 });
 
+// Test Supabase connection
+app.get('/api/test-supabase', async (req, res) => {
+  try {
+    console.log('Testing Supabase connection...');
+    
+    // Try to query the user_cvs table
+    const { data, error } = await supabase
+      .from('user_cvs')
+      .select('*')
+      .limit(1);
+    
+    if (error) {
+      console.error('Supabase test error:', error);
+      res.status(500).json({ 
+        error: 'Supabase connection failed',
+        details: error.message,
+        code: error.code
+      });
+    } else {
+      res.json({ 
+        message: 'Supabase connection successful!',
+        tableExists: true,
+        recordCount: data ? data.length : 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (err) {
+    console.error('Supabase test error:', err);
+    res.status(500).json({ 
+      error: 'Supabase connection failed',
+      details: err.message
+    });
+  }
+});
+
 // Test multiple R2 endpoints to find the correct one
 app.get('/api/test-r2-endpoints', async (req, res) => {
   const possibleEndpoints = [
