@@ -502,10 +502,67 @@ app.get('/api/test-r2-connection', async (req, res) => {
 // Debug R2 configuration endpoint
 app.get('/api/debug-r2-config', async (req, res) => {
   res.json({
-    endpoint: 'https://1020050031271.r2.cloudflarestorage.com', // Hardcoded correct endpoint
+    endpoint: 'https://2bf2de591e1cf380e0266d46ea7f3524.r2.cloudflarestorage.com', // Correct account ID
     bucket: R2_BUCKET,
     hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
     hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test multiple R2 endpoints to find the correct one
+app.get('/api/test-r2-endpoints', async (req, res) => {
+  const possibleEndpoints = [
+    'https://2bf2de591e1cf380e0266d46ea7f3524.r2.cloudflarestorage.com',
+    'https://r2.cloudflarestorage.com',
+    'https://api.cloudflare.com/client/v4/accounts/2bf2de591e1cf380e0266d46ea7f3524/storage/buckets'
+  ];
+  
+  const results = [];
+  
+  for (const endpoint of possibleEndpoints) {
+    try {
+      console.log(`Testing endpoint: ${endpoint}`);
+      
+      // Create a temporary S3 client for this endpoint
+      const tempS3 = new AWS.S3({
+        endpoint: endpoint,
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        region: 'auto',
+        signatureVersion: 'v4',
+        s3ForcePathStyle: true,
+      });
+      
+      // Try to list objects
+      const result = await tempS3.listObjectsV2({
+        Bucket: R2_BUCKET,
+        MaxKeys: 1
+      }).promise();
+      
+      results.push({
+        endpoint,
+        status: 'SUCCESS',
+        objectCount: result.KeyCount
+      });
+      
+      console.log(`✅ Endpoint ${endpoint} works!`);
+      
+    } catch (error) {
+      results.push({
+        endpoint,
+        status: 'FAILED',
+        error: error.message,
+        code: error.code
+      });
+      
+      console.log(`❌ Endpoint ${endpoint} failed: ${error.message}`);
+    }
+  }
+  
+  res.json({
+    message: 'R2 endpoint test results',
+    results,
     timestamp: new Date().toISOString()
   });
 });
