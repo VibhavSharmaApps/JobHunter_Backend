@@ -260,25 +260,43 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
   }
 
   try {
+    console.log('Starting proxy upload for user:', user.id);
+    console.log('File name:', fileName);
+    console.log('File type:', fileType);
+    console.log('File size:', req.file.size);
+    
     const fileId = `${user.id}_${Date.now()}_${fileName}`;
     const key = `cvs/${user.id}/${fileId}`;
     
+    console.log('Uploading to R2 with key:', key);
+    
     // Upload directly to R2 through backend
-    await s3.putObject({
+    const uploadResult = await s3.putObject({
       Bucket: R2_BUCKET,
       Key: key,
       Body: req.file.buffer,
       ContentType: fileType,
     }).promise();
 
+    console.log('R2 upload successful:', uploadResult);
+
     const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
     
+    console.log('File URL:', fileUrl);
+    
     // Save URL to Supabase
-    await supabase.from('user_cvs').upsert({ 
+    const { data: dbResult, error: dbError } = await supabase.from('user_cvs').upsert({ 
       user_id: user.id, 
       url: fileUrl,
       file_name: fileName
     });
+    
+    if (dbError) {
+      console.error('Database error:', dbError);
+      return res.status(500).json({ error: 'Failed to save file URL to database' });
+    }
+    
+    console.log('Database save successful:', dbResult);
     
     res.json({ 
       message: 'Upload successful',
@@ -288,7 +306,30 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
     });
   } catch (err) {
     console.error('Proxy upload error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Error details:', {
+      message: err.message,
+      code: err.code,
+      statusCode: err.statusCode,
+      requestId: err.requestId
+    });
+    
+    // Provide more specific error messages
+    if (err.code === 'NetworkingError' || err.message.includes('SSL') || err.message.includes('TLS')) {
+      res.status(500).json({ 
+        error: 'SSL/TLS connection issue with storage service. Please try again.',
+        details: err.message 
+      });
+    } else if (err.code === 'AccessDenied' || err.code === 'InvalidAccessKeyId') {
+      res.status(500).json({ 
+        error: 'Storage service authentication failed. Please contact support.',
+        details: err.message 
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Upload failed. Please try again.',
+        details: err.message 
+      });
+    }
   }
 });
 
@@ -384,6 +425,47 @@ app.get('/api/test-s3', requireJwt, async (req, res) => {
     res.status(500).json({ 
       error: 'S3 connection failed',
       details: err.message 
+    });
+  }
+});
+
+// Test R2 upload endpoint
+app.post('/api/test-r2-upload', requireJwt, async (req, res) => {
+  try {
+    const user = req.user;
+    const testKey = `test/${user.id}/test-${Date.now()}.txt`;
+    const testContent = 'This is a test upload to verify R2 connectivity.';
+    
+    console.log('Testing R2 upload with key:', testKey);
+    
+    const uploadResult = await s3.putObject({
+      Bucket: R2_BUCKET,
+      Key: testKey,
+      Body: testContent,
+      ContentType: 'text/plain',
+    }).promise();
+
+    console.log('R2 test upload successful:', uploadResult);
+    
+    // Clean up test file
+    await s3.deleteObject({
+      Bucket: R2_BUCKET,
+      Key: testKey,
+    }).promise();
+    
+    res.json({ 
+      message: 'R2 upload test successful!',
+      bucket: R2_BUCKET,
+      testKey,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('R2 upload test error:', err);
+    res.status(500).json({ 
+      error: 'R2 upload test failed',
+      details: err.message,
+      code: err.code,
+      statusCode: err.statusCode
     });
   }
 });
