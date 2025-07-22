@@ -24,7 +24,7 @@ const httpsAgent = new https.Agent({
 
 // Cloudflare R2 (S3-compatible)
 const s3 = new AWS.S3({
-  endpoint: process.env.R2_ENDPOINT, // e.g. https://<accountid>.r2.cloudflarestorage.com
+  endpoint: process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com', // Use your account ID
   accessKeyId: process.env.R2_ACCESS_KEY_ID,
   secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   region: 'auto',
@@ -43,6 +43,13 @@ const s3 = new AWS.S3({
 });
 
 const R2_BUCKET = process.env.R2_BUCKET;
+
+// Debug R2 configuration
+console.log('R2 Configuration:');
+console.log('Endpoint:', process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com');
+console.log('Bucket:', R2_BUCKET);
+console.log('Access Key ID:', process.env.R2_ACCESS_KEY_ID ? 'Set' : 'Not set');
+console.log('Secret Access Key:', process.env.R2_SECRET_ACCESS_KEY ? 'Set' : 'Not set');
 
 module.exports = {
   supabase,

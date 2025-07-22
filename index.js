@@ -470,6 +470,35 @@ app.post('/api/test-r2-upload', requireJwt, async (req, res) => {
   }
 });
 
+// Simple R2 connection test (no auth required)
+app.get('/api/test-r2-connection', async (req, res) => {
+  try {
+    console.log('Testing R2 connection without auth...');
+    
+    // Just try to list objects (limited to 1) to test connection
+    const result = await s3.listObjectsV2({
+      Bucket: R2_BUCKET,
+      MaxKeys: 1
+    }).promise();
+    
+    res.json({ 
+      message: 'R2 connection test successful!',
+      bucket: R2_BUCKET,
+      objectCount: result.KeyCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('R2 connection test error:', err);
+    res.status(500).json({ 
+      error: 'R2 connection test failed',
+      details: err.message,
+      code: err.code,
+      statusCode: err.statusCode,
+      endpoint: process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com'
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 }); 
