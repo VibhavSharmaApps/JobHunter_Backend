@@ -305,6 +305,8 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
     const { data: dbResult, error: dbError } = await supabase.from('user_cvs').upsert({ 
       user_id: user.id, 
       url: fileUrl
+    }, {
+      onConflict: 'user_id'
     });
     
     if (dbError) {
