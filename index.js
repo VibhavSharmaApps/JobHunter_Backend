@@ -11,7 +11,18 @@ const upload = multer();
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(cors());
+// Configure CORS properly for credentials
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://d0cfd836.jobhunter-frontend.pages.dev',
+    'https://jobhunter-frontend.pages.dev'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(passport.initialize());
 
