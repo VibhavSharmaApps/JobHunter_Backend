@@ -499,6 +499,17 @@ app.get('/api/test-r2-connection', async (req, res) => {
   }
 });
 
+// Debug R2 configuration endpoint
+app.get('/api/debug-r2-config', async (req, res) => {
+  res.json({
+    endpoint: process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com',
+    bucket: R2_BUCKET,
+    hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
+    hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 }); 

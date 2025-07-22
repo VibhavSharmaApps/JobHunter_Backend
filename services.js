@@ -23,8 +23,13 @@ const httpsAgent = new https.Agent({
 });
 
 // Cloudflare R2 (S3-compatible)
+// Force the correct endpoint since environment variable might be wrong
+const R2_ENDPOINT = process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com';
+
+console.log('Using R2 endpoint:', R2_ENDPOINT);
+
 const s3 = new AWS.S3({
-  endpoint: process.env.R2_ENDPOINT || 'https://1020050031271.r2.cloudflarestorage.com', // Use your account ID
+  endpoint: R2_ENDPOINT,
   accessKeyId: process.env.R2_ACCESS_KEY_ID,
   secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   region: 'auto',
