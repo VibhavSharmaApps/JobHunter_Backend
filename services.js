@@ -34,6 +34,8 @@ const s3 = new AWS.S3({
   secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   region: 'auto',
   signatureVersion: 'v4',
+  // Force path-style addressing for R2
+  s3ForcePathStyle: true,
   // Use the custom HTTPS agent
   httpOptions: {
     timeout: 30000,
