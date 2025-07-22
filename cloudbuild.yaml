@@ -1,0 +1,28 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/jobhunter-backend:$COMMIT_SHA', '.']
+  
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/jobhunter-backend:$COMMIT_SHA']
+  
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'jobhunter-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/jobhunter-backend:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'SUPABASE_URL=https://ovakjjvoposiznewcldw.supabase.co,SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YWtqanZvcG9zaXpuZXdjbGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1OTU2MDcsImV4cCI6MjA2ODE3MTYwN30.L-wPHU2Uwq5sYDTJf4n4QW9LcVexEWEq9hTxpftavZo,JWT_SECRET=a751a6576552741fed25c25e9084bca25ed921876487b04f527c115b66890247ac42c4e7efeb79408038c8a93dca156c96fb4515f848ac5cd2c1940331292589,R2_ENDPOINT=https://r2.cloudflarestorage.com,R2_ACCESS_KEY_ID=14590e6254aa15078d8f3b4fb44d25f3,R2_SECRET_ACCESS_KEY=31bd0fe1f17dfa756d33315bc7b2d3f1256d39962ec6037206dd35db094a24f4,R2_BUCKET=resumes'
+
+images:
+  - 'gcr.io/$PROJECT_ID/jobhunter-backend:$COMMIT_SHA' 
