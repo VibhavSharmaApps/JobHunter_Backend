@@ -195,6 +195,7 @@ app.post('/api/upload/presign', requireJwt, async (req, res) => {
       fileId,
     });
   } catch (err) {
+    console.error('Presigned URL generation error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -224,6 +225,69 @@ app.post('/api/upload/confirm', requireJwt, async (req, res) => {
       fileId 
     });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Proxy upload endpoint to avoid SSL issues with direct R2 upload
+app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res) => {
+  const user = req.user;
+  
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const { fileName, fileType } = req.body;
+  
+  if (!fileName || !fileType) {
+    return res.status(400).json({ error: 'fileName and fileType are required' });
+  }
+
+  // Validate file size (5MB limit)
+  if (req.file.size > 5 * 1024 * 1024) {
+    return res.status(400).json({ error: 'File size must be less than 5MB' });
+  }
+
+  // Validate file type
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ];
+  
+  if (!allowedTypes.includes(fileType)) {
+    return res.status(400).json({ error: 'Only PDF and Word documents are allowed' });
+  }
+
+  try {
+    const fileId = `${user.id}_${Date.now()}_${fileName}`;
+    const key = `cvs/${user.id}/${fileId}`;
+    
+    // Upload directly to R2 through backend
+    await s3.putObject({
+      Bucket: R2_BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: fileType,
+    }).promise();
+
+    const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+    
+    // Save URL to Supabase
+    await supabase.from('user_cvs').upsert({ 
+      user_id: user.id, 
+      url: fileUrl,
+      file_name: fileName
+    });
+    
+    res.json({ 
+      message: 'Upload successful',
+      fileUrl,
+      fileId,
+      fileName
+    });
+  } catch (err) {
+    console.error('Proxy upload error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -298,6 +362,30 @@ app.get('/api/test-cors', (req, res) => {
     origin: req.headers.origin,
     timestamp: new Date().toISOString()
   });
+});
+
+// Test S3 connection endpoint
+app.get('/api/test-s3', requireJwt, async (req, res) => {
+  try {
+    // Test S3 connection by listing objects (limited to 1)
+    const result = await s3.listObjectsV2({
+      Bucket: R2_BUCKET,
+      MaxKeys: 1
+    }).promise();
+    
+    res.json({ 
+      message: 'S3 connection is working!',
+      bucket: R2_BUCKET,
+      objectCount: result.KeyCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('S3 test error:', err);
+    res.status(500).json({ 
+      error: 'S3 connection failed',
+      details: err.message 
+    });
+  }
 });
 
 app.listen(port, () => {

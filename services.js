@@ -14,6 +14,20 @@ const s3 = new AWS.S3({
   secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   region: 'auto',
   signatureVersion: 'v4',
+  // Force modern TLS configuration
+  httpOptions: {
+    timeout: 30000,
+    connectTimeout: 5000,
+    // Use modern TLS
+    agent: require('https').Agent({
+      keepAlive: true,
+      maxSockets: 50,
+      rejectUnauthorized: true,
+      // Force TLS 1.2 or higher
+      minVersion: 'TLSv1.2',
+      maxVersion: 'TLSv1.3'
+    })
+  }
 });
 
 const R2_BUCKET = process.env.R2_BUCKET;
