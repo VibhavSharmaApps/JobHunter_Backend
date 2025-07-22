@@ -299,14 +299,12 @@ app.post('/api/upload/proxy', requireJwt, upload.single('file'), async (req, res
     // Save URL to Supabase
     console.log('Attempting to save to database with data:', {
       user_id: user.id,
-      url: fileUrl,
-      file_name: fileName
+      url: fileUrl
     });
     
     const { data: dbResult, error: dbError } = await supabase.from('user_cvs').upsert({ 
       user_id: user.id, 
-      url: fileUrl,
-      file_name: fileName
+      url: fileUrl
     });
     
     if (dbError) {
@@ -580,8 +578,7 @@ app.get('/api/test-user-cvs-schema', async (req, res) => {
     // Try to insert a test record to see what columns are expected
     const testData = {
       user_id: 'test-user-id',
-      url: 'https://test-url.com/test.pdf',
-      file_name: 'test.pdf'
+      url: 'https://test-url.com/test.pdf'
     };
     
     console.log('Attempting to insert test data:', testData);
