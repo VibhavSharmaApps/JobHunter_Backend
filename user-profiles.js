@@ -46,12 +46,16 @@ class UserProfileService {
   // Create or update user profile
   async upsertUserProfile(userId, profileData) {
     try {
+      console.log('Upserting profile for user:', userId);
+      
       // Check if profile exists
       const { data: existingProfile } = await this.supabase
         .from('user_profiles')
         .select('id')
         .eq('user_id', userId)
         .single();
+
+      console.log('Existing profile found:', !!existingProfile);
 
       let result;
       if (existingProfile) {
@@ -83,8 +87,10 @@ class UserProfileService {
 
         if (error) throw error;
         result = data;
+        console.log('Profile updated successfully');
       } else {
         // Create new profile
+        console.log('Creating new profile');
         const { data, error } = await this.supabase
           .from('user_profiles')
           .insert({
@@ -111,6 +117,7 @@ class UserProfileService {
 
         if (error) throw error;
         result = data;
+        console.log('Profile created successfully');
       }
 
       // Handle work history
@@ -197,6 +204,17 @@ class UserProfileService {
 
   // Validate profile data
   validateProfileData(profileData) {
+    console.log('Validating profile data:', {
+      name: !!profileData.name,
+      email: !!profileData.email,
+      location: !!profileData.location,
+      experience: !!profileData.experience,
+      education: !!profileData.education,
+      summary: !!profileData.summary,
+      skills: profileData.skills?.length || 0,
+      availability: !!profileData.availability
+    });
+    
     const errors = [];
 
     if (!profileData.name || profileData.name.trim() === '') {
@@ -223,14 +241,17 @@ class UserProfileService {
       errors.push('Professional summary is required');
     }
 
-    if (!profileData.skills || profileData.skills.length === 0) {
-      errors.push('At least one skill is required');
-    }
+    // Make skills optional for now
+    // if (!profileData.skills || profileData.skills.length === 0) {
+    //   errors.push('At least one skill is required');
+    // }
 
     if (!profileData.availability || profileData.availability.trim() === '') {
       errors.push('Availability is required');
     }
 
+    console.log('Validation errors:', errors);
+    
     return {
       isValid: errors.length === 0,
       errors

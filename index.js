@@ -780,9 +780,25 @@ app.post('/api/user/profile', requireJwt, async (req, res) => {
   try {
     const profileData = req.body;
     
+    console.log('Profile save request:', {
+      userId: req.user.id,
+      profileData: {
+        name: profileData.name,
+        email: profileData.email,
+        location: profileData.location,
+        experience: profileData.experience,
+        education: profileData.education,
+        summary: profileData.summary,
+        skills: profileData.skills?.length || 0,
+        availability: profileData.availability,
+        hasWorkHistory: !!profileData.work_history?.length
+      }
+    });
+    
     // Validate profile data
     const validation = userProfileService.validateProfileData(profileData);
     if (!validation.isValid) {
+      console.log('Profile validation failed:', validation.errors);
       return res.status(400).json({
         error: 'Invalid profile data',
         details: validation.errors
@@ -790,6 +806,8 @@ app.post('/api/user/profile', requireJwt, async (req, res) => {
     }
     
     const profile = await userProfileService.upsertUserProfile(req.user.id, profileData);
+    
+    console.log('Profile saved successfully:', profile?.id);
     
     res.json({
       success: true,
@@ -885,6 +903,45 @@ app.get('/api/ai/test', requireJwt, async (req, res) => {
     console.error('AI test error:', error);
     res.status(500).json({
       error: 'Failed to test AI service',
+      details: error.message
+    });
+  }
+});
+
+// Test database connectivity
+app.get('/api/test/db', requireJwt, async (req, res) => {
+  try {
+    // Test user_profiles table
+    const { data: profiles, error: profilesError } = await userProfileService.supabase
+      .from('user_profiles')
+      .select('count')
+      .limit(1);
+    
+    // Test work_history table
+    const { data: workHistory, error: workHistoryError } = await userProfileService.supabase
+      .from('work_history')
+      .select('count')
+      .limit(1);
+    
+    res.json({
+      success: true,
+      database: {
+        user_profiles: {
+          accessible: !profilesError,
+          error: profilesError?.message
+        },
+        work_history: {
+          accessible: !workHistoryError,
+          error: workHistoryError?.message
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({
+      error: 'Failed to test database',
       details: error.message
     });
   }
