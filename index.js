@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const upload = multer();
+const JobDiscoveryService = require('./job-discovery');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -675,6 +676,67 @@ app.get('/api/test-r2-endpoints', async (req, res) => {
     results,
     timestamp: new Date().toISOString()
   });
+});
+
+// JOB DISCOVERY ROUTES
+const jobDiscoveryService = new JobDiscoveryService();
+
+// Discover jobs based on preferences
+app.post('/api/jobs/discover', requireJwt, async (req, res) => {
+  try {
+    const preferences = req.body;
+    
+    if (!preferences.title) {
+      return res.status(400).json({ error: 'Job title is required' });
+    }
+
+    console.log('Job discovery request:', preferences);
+    
+    const jobs = await jobDiscoveryService.discoverJobs(preferences);
+    
+    res.json({
+      success: true,
+      jobs: jobs,
+      count: jobs.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Job discovery error:', error);
+    res.status(500).json({
+      error: 'Failed to discover jobs',
+      details: error.message
+    });
+  }
+});
+
+// Get job details by ID
+app.get('/api/jobs/:id', requireJwt, async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    
+    // For now, return mock data - in production this would fetch from database
+    const job = {
+      id: jobId,
+      title: 'Sample Job',
+      company: 'Sample Company',
+      location: 'Remote',
+      url: 'https://example.com/job',
+      source: 'Sample Source',
+      postedDate: new Date().toISOString(),
+      salary: '$100k - $150k',
+      experience: '3+ years'
+    };
+    
+    res.json({ job });
+    
+  } catch (error) {
+    console.error('Get job error:', error);
+    res.status(500).json({
+      error: 'Failed to get job details',
+      details: error.message
+    });
+  }
 });
 
 app.listen(port, () => {
