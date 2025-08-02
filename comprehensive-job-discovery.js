@@ -45,10 +45,18 @@ class ComprehensiveJobDiscoveryService {
       // Determine which sources to scrape based on preferences
       const sourcesToScrape = this.determineSourcesToScrape(jobBoards, categories, countries);
 
+      // Limit to first 3 source types for faster response
+      const limitedSources = sourcesToScrape.slice(0, 3);
+
       // Scrape from each source type
-      for (const sourceType of sourcesToScrape) {
+      for (const sourceType of limitedSources) {
         const jobs = await this.scrapeSourceType(sourceType, preferences);
         allJobs = allJobs.concat(jobs);
+        
+        // Stop if we have enough jobs
+        if (allJobs.length >= 20) {
+          break;
+        }
       }
 
       // Filter jobs by criteria
@@ -135,7 +143,10 @@ class ComprehensiveJobDiscoveryService {
     console.log(`Scraping from ${sourceConfig.name}`);
     const allJobs = [];
 
-    for (const source of sourceConfig.sources) {
+    // Limit to first 3 sources for faster response
+    const limitedSources = sourceConfig.sources.slice(0, 3);
+
+    for (const source of limitedSources) {
       try {
         // Check if source matches country preferences
         if (preferences.countries && !preferences.countries.includes(source.country)) {
@@ -150,8 +161,8 @@ class ComprehensiveJobDiscoveryService {
         const jobs = await this.scrapeJobSource(source, preferences);
         allJobs.push(...jobs);
 
-        // Add delay between sources
-        await this.delay(this.requestDelays[source.type] || this.requestDelays.niche);
+        // Reduced delay for faster response
+        await this.delay(1000); // 1 second instead of 2-3 seconds
 
       } catch (error) {
         console.error(`Error scraping ${source.name}:`, error.message);
