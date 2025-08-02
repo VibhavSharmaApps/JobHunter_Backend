@@ -73,9 +73,9 @@ class JobDiscoveryService {
           allJobs = allJobs.concat(limitedJobs);
           
         } catch (error) {
-          console.log('Comprehensive search failed, using mock data:', error.message);
-          // Fallback to mock data if comprehensive fails
-          allJobs = this.getMockJobs(preferences);
+          console.log('Comprehensive search failed, no results found:', error.message);
+          // Return empty array if comprehensive fails
+          allJobs = [];
         }
       }
 
