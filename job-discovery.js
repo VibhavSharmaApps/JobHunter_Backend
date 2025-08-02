@@ -36,7 +36,7 @@ class JobDiscoveryService {
   }
 
   // Main job discovery method
-  async discoverJobs(preferences) {
+  async discoverJobs(preferences, userProfile = null) {
     const {
       title,
       location,
@@ -47,6 +47,15 @@ class JobDiscoveryService {
       categories = [],
       countries = ["US", "UK", "CA"]
     } = preferences;
+
+    // If user profile is provided, enhance job matching
+    if (userProfile) {
+      console.log('Using user profile for enhanced job matching:', {
+        skills: userProfile.skills,
+        experience: userProfile.experience,
+        location: userProfile.location
+      });
+    }
 
     console.log('Discovering jobs with preferences:', preferences);
 

@@ -8,6 +8,8 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const upload = multer();
 const JobDiscoveryService = require('./job-discovery');
+const UserProfileService = require('./user-profiles');
+const AIService = require('./ai-service');
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -692,7 +694,15 @@ app.post('/api/jobs/discover', requireJwt, async (req, res) => {
 
     console.log('Job discovery request:', preferences);
     
-    const jobs = await jobDiscoveryService.discoverJobs(preferences);
+    // Get user profile for enhanced job matching
+    let userProfile = null;
+    try {
+      userProfile = await userProfileService.getUserProfileForAI(req.user.id);
+    } catch (error) {
+      console.log('Could not load user profile for job discovery:', error.message);
+    }
+    
+    const jobs = await jobDiscoveryService.discoverJobs(preferences, userProfile);
     
     res.json({
       success: true,
@@ -734,6 +744,147 @@ app.get('/api/jobs/:id', requireJwt, async (req, res) => {
     console.error('Get job error:', error);
     res.status(500).json({
       error: 'Failed to get job details',
+      details: error.message
+    });
+  }
+});
+
+// USER PROFILE ROUTES
+const userProfileService = new UserProfileService();
+
+// AI SERVICE ROUTES
+const aiService = new AIService();
+
+// Get user profile
+app.get('/api/user/profile', requireJwt, async (req, res) => {
+  try {
+    const profile = await userProfileService.getUserProfile(req.user.id);
+    
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    
+    res.json({ profile });
+    
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      error: 'Failed to get user profile',
+      details: error.message
+    });
+  }
+});
+
+// Create or update user profile
+app.post('/api/user/profile', requireJwt, async (req, res) => {
+  try {
+    const profileData = req.body;
+    
+    // Validate profile data
+    const validation = userProfileService.validateProfileData(profileData);
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: 'Invalid profile data',
+        details: validation.errors
+      });
+    }
+    
+    const profile = await userProfileService.upsertUserProfile(req.user.id, profileData);
+    
+    res.json({
+      success: true,
+      profile,
+      message: 'Profile saved successfully'
+    });
+    
+  } catch (error) {
+    console.error('Save profile error:', error);
+    res.status(500).json({
+      error: 'Failed to save profile',
+      details: error.message
+    });
+  }
+});
+
+// Get user profile for AI form filling
+app.get('/api/user/profile/ai', requireJwt, async (req, res) => {
+  try {
+    const profile = await userProfileService.getUserProfileForAI(req.user.id);
+    
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    
+    res.json({ profile });
+    
+  } catch (error) {
+    console.error('Get AI profile error:', error);
+    res.status(500).json({
+      error: 'Failed to get AI profile',
+      details: error.message
+    });
+  }
+});
+
+// Note: ChatGPT API key is managed centrally via environment variables
+
+// AI Form Filling Routes
+app.post('/api/ai/generate-answers', requireJwt, async (req, res) => {
+  try {
+    const { jobDescription, questions } = req.body;
+    
+    if (!jobDescription || !questions || !Array.isArray(questions)) {
+      return res.status(400).json({ 
+        error: 'Job description and questions array are required' 
+      });
+    }
+
+    // Get user profile for AI context
+    const userProfile = await userProfileService.getUserProfileForAI(req.user.id);
+    
+    if (!userProfile) {
+      return res.status(404).json({ 
+        error: 'User profile not found. Please complete your profile first.' 
+      });
+    }
+
+    // Generate AI answers for all questions
+    const results = await aiService.processApplicationQuestions(
+      jobDescription, 
+      userProfile, 
+      questions
+    );
+
+    res.json({
+      success: true,
+      answers: results,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('AI answer generation error:', error);
+    res.status(500).json({
+      error: 'Failed to generate AI answers',
+      details: error.message
+    });
+  }
+});
+
+// Test AI service connectivity
+app.get('/api/ai/test', requireJwt, async (req, res) => {
+  try {
+    const testResult = await aiService.testConnection();
+    
+    res.json({
+      success: true,
+      ai: testResult,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('AI test error:', error);
+    res.status(500).json({
+      error: 'Failed to test AI service',
       details: error.message
     });
   }
