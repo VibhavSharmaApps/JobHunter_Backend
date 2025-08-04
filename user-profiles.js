@@ -48,6 +48,43 @@ class UserProfileService {
     try {
       console.log('Upserting profile for user:', userId);
       
+      // First, ensure user exists in users table
+      console.log('Checking if user exists in users table...');
+      const { data: existingUser, error: userError } = await this.supabase
+        .from('users')
+        .select('id, email')
+        .eq('id', userId)
+        .single();
+      
+      console.log('User check result:', {
+        userId: userId,
+        userExists: !!existingUser,
+        userError: userError?.message
+      });
+      
+      // If user doesn't exist, create them
+      if (!existingUser) {
+        console.log('User does not exist, creating new user...');
+        const { data: newUser, error: createError } = await this.supabase
+          .from('users')
+          .insert({
+            id: userId,
+            email: profileData.email,
+            password_hash: 'temp_hash_for_backend_created_user'
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Error creating user:', createError);
+          throw new Error(`Failed to create user: ${createError.message}`);
+        }
+        
+        console.log('User created successfully:', newUser.id);
+      } else {
+        console.log('User already exists:', existingUser.id);
+      }
+      
       // Use RPC to bypass RLS if needed
       const { data: rpcResult, error: rpcError } = await this.supabase
         .rpc('upsert_user_profile', {
