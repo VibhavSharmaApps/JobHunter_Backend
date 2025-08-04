@@ -758,6 +758,45 @@ const aiService = new AIService();
 // Get user profile
 app.get('/api/user/profile', requireJwt, async (req, res) => {
   try {
+    console.log('Get profile request for user:', req.user.id);
+    
+    // Check if user exists in users table
+    const { data: existingUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('id', req.user.id)
+      .single();
+    
+    console.log('User check for GET:', {
+      userId: req.user.id,
+      userExists: !!existingUser,
+      userError: userError?.message
+    });
+    
+    // If user doesn't exist, create them
+    if (!existingUser) {
+      console.log('Creating user in users table for GET...');
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: req.user.id,
+          email: req.user.email,
+          password_hash: 'temp_hash'
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('Error creating user for GET:', createError);
+        return res.status(500).json({
+          error: 'Failed to create user',
+          details: createError.message
+        });
+      }
+      
+      console.log('User created successfully for GET:', newUser.id);
+    }
+    
     const profile = await userProfileService.getUserProfile(req.user.id);
     
     if (!profile) {
@@ -782,6 +821,7 @@ app.post('/api/user/profile', requireJwt, async (req, res) => {
     
     console.log('Profile save request:', {
       userId: req.user.id,
+      userEmail: req.user.email,
       profileData: {
         name: profileData.name,
         email: profileData.email,
@@ -794,6 +834,46 @@ app.post('/api/user/profile', requireJwt, async (req, res) => {
         hasWorkHistory: !!profileData.work_history?.length
       }
     });
+    
+    // Check if user exists in users table
+    const { data: existingUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('id', req.user.id)
+      .single();
+    
+    console.log('User check:', {
+      userId: req.user.id,
+      userExists: !!existingUser,
+      userError: userError?.message
+    });
+    
+    // If user doesn't exist, create them
+    if (!existingUser) {
+      console.log('Creating user in users table...');
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert({
+          id: req.user.id,
+          email: req.user.email,
+          password_hash: 'temp_hash' // We'll update this later
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('Error creating user:', createError);
+        return res.status(500).json({
+          error: 'Failed to create user',
+          details: createError.message
+        });
+      }
+      
+      console.log('User created successfully:', newUser.id);
+    }
+    
+    // Add user_id to profileData to ensure it matches auth.uid()
+    profileData.user_id = req.user.id;
     
     // Validate profile data
     const validation = userProfileService.validateProfileData(profileData);

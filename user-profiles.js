@@ -5,7 +5,7 @@ class UserProfileService {
   constructor() {
     this.supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
     );
   }
 
@@ -48,6 +48,35 @@ class UserProfileService {
     try {
       console.log('Upserting profile for user:', userId);
       
+      // Use RPC to bypass RLS if needed
+      const { data: rpcResult, error: rpcError } = await this.supabase
+        .rpc('upsert_user_profile', {
+          p_user_id: userId,
+          p_name: profileData.name,
+          p_email: profileData.email,
+          p_phone: profileData.phone,
+          p_location: profileData.location,
+          p_experience: profileData.experience,
+          p_education: profileData.education,
+          p_summary: profileData.summary,
+          p_skills: profileData.skills,
+          p_availability: profileData.availability,
+          p_salary_expectation: profileData.salary_expectation,
+          p_remote_preference: profileData.remote_preference,
+          p_languages: profileData.languages,
+          p_certifications: profileData.certifications,
+          p_linkedin_url: profileData.linkedin_url,
+          p_github_url: profileData.github_url,
+          p_portfolio_url: profileData.portfolio_url
+        });
+      
+      if (!rpcError) {
+        console.log('Profile upserted via RPC successfully');
+        return rpcResult;
+      }
+      
+      console.log('RPC failed, falling back to direct method:', rpcError.message);
+      
       // Check if profile exists
       const { data: existingProfile } = await this.supabase
         .from('user_profiles')
@@ -85,12 +114,15 @@ class UserProfileService {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating profile:', error);
+          throw error;
+        }
         result = data;
         console.log('Profile updated successfully');
       } else {
         // Create new profile
-        console.log('Creating new profile');
+        console.log('Creating new profile with user_id:', userId);
         const { data, error } = await this.supabase
           .from('user_profiles')
           .insert({
@@ -115,7 +147,10 @@ class UserProfileService {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating profile:', error);
+          throw error;
+        }
         result = data;
         console.log('Profile created successfully');
       }
