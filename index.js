@@ -836,21 +836,28 @@ app.post('/api/user/profile', requireJwt, async (req, res) => {
     });
     
     // Check if user exists in users table
+    console.log('Checking for user ID:', req.user.id);
     const { data: existingUser, error: userError } = await supabase
       .from('users')
       .select('id, email')
       .eq('id', req.user.id)
       .single();
     
-    console.log('User check:', {
+    console.log('User check result:', {
       userId: req.user.id,
       userExists: !!existingUser,
-      userError: userError?.message
+      userError: userError?.message,
+      existingUser: existingUser
     });
     
     // If user doesn't exist, create them
     if (!existingUser) {
-      console.log('Creating user in users table...');
+      console.log('User does not exist, creating new user...');
+      console.log('Creating user with data:', {
+        id: req.user.id,
+        email: req.user.email
+      });
+      
       const { data: newUser, error: createError } = await supabase
         .from('users')
         .insert({
@@ -870,6 +877,8 @@ app.post('/api/user/profile', requireJwt, async (req, res) => {
       }
       
       console.log('User created successfully:', newUser.id);
+    } else {
+      console.log('User already exists:', existingUser.id);
     }
     
     // Add user_id to profileData to ensure it matches auth.uid()
